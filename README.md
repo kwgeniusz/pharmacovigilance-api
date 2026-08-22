@@ -11,14 +11,27 @@ The Vue application is intentionally deferred to a separate `pharmacovigilance-f
 
 No host PHP, Composer, Node.js, or MySQL installation is required.
 
-## Setup
+## Setup instructions
+
+Clone the repository and enter the project directory:
+
+```bash
+git clone https://github.com/kwgeniusz/pharmacovigilance-api.git
+cd pharmacovigilance-api
+```
+
+Create the local environment file, build the PHP 8.5 image, and install Composer dependencies inside the container:
 
 ```bash
 cp .env.example .env
-./vendor/bin/sail up -d --build
-./vendor/bin/sail artisan key:generate
-./vendor/bin/sail artisan migrate:fresh --seed
+docker compose build laravel.test
+docker compose run --rm laravel.test composer install
+docker compose up -d
+docker compose exec laravel.test php artisan key:generate
+docker compose exec laravel.test php artisan migrate:fresh --seed
 ```
+
+After Composer has created `vendor/`, the Sail helper can be used for subsequent commands.
 
 The services are available at:
 
@@ -26,7 +39,7 @@ The services are available at:
 - Mailpit inbox: `http://localhost:8025`
 - MySQL: `localhost:3308`
 
-Stop the environment with `./vendor/bin/sail down`.
+Stop the environment with `./vendor/bin/sail down` or `docker compose down`.
 
 ## Seeded data
 
@@ -121,7 +134,9 @@ The recipient and medication details are always resolved from the database. A re
 - Missing model records return `404`.
 - Invalid input and business-rule violations return `422` with an `errors` object.
 
-## Architecture
+## Design decisions
+
+### Architecture
 
 The project follows Laravel MVC with a small application layer:
 
