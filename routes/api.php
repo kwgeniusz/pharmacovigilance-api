@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\MedicationController;
 use App\Http\Controllers\Api\OrderController;
+use App\Http\Controllers\Api\OrderExportController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:6,1');
@@ -15,6 +16,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
 
     Route::get('/medications/search', [MedicationController::class, 'search']);
     Route::get('/orders', [OrderController::class, 'index']);
+    Route::get('/orders/export', OrderExportController::class)->middleware('role:administrator');
     Route::get('/orders/{order}', [OrderController::class, 'show']);
     Route::get('/customers/{customer}', [CustomerController::class, 'show']);
     Route::post('/alerts/send', [AlertController::class, 'send']);

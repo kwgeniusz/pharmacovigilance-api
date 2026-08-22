@@ -5,6 +5,7 @@ namespace App\Queries\Orders;
 use App\Models\Order;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
 
 class SearchOrders
 {
@@ -13,6 +14,17 @@ class SearchOrders
      * @return LengthAwarePaginator<int, Order>
      */
     public function execute(array $filters): LengthAwarePaginator
+    {
+        return $this->builder($filters)
+            ->paginate(15)
+            ->withQueryString();
+    }
+
+    /**
+     * @param  array{lot_number: string, start_date: string, end_date: string}  $filters
+     * @return Builder<Order>
+     */
+    public function builder(array $filters): Builder
     {
         $lot = $filters['lot_number'];
         $startDate = CarbonImmutable::createFromFormat('Y-m-d', $filters['start_date'])->startOfDay();
@@ -28,8 +40,6 @@ class SearchOrders
                     ->with('medication'),
             ])
             ->latest('purchase_date')
-            ->latest('id')
-            ->paginate(15)
-            ->withQueryString();
+            ->latest('id');
     }
 }
