@@ -1,0 +1,164 @@
+# Pharmacovigilance API
+
+Laravel 13 REST API for finding buyers of a medication lot and sending recall warnings. It uses MySQL, Sanctum stateful authentication, Laravel Resources, Pest, and Laravel Sail with PHP 8.5 and Mailpit.
+
+The Vue application is intentionally deferred to a separate `pharmacovigilance-front` repository.
+
+## Requirements
+
+- Docker Engine with Docker Compose
+- Ports `8000`, `3308`, and `8025` available, or equivalent overrides in `.env`
+
+No host PHP, Composer, Node.js, or MySQL installation is required.
+
+## Setup
+
+```bash
+cp .env.example .env
+./vendor/bin/sail up -d --build
+./vendor/bin/sail artisan key:generate
+./vendor/bin/sail artisan migrate:fresh --seed
+```
+
+The services are available at:
+
+- API: `http://localhost:8000`
+- Mailpit inbox: `http://localhost:8025`
+- MySQL: `localhost:3308`
+
+Stop the environment with `./vendor/bin/sail down`.
+
+## Seeded data
+
+- Administrator username: `admin`
+- Administrator password: `password`
+- Affected medication lot: `951357`
+- Purchases of that lot inside the rolling 30-day window
+- An older purchase of the same lot
+- A recent purchase of an unrelated lot
+
+The seeded dates are calculated when the seeder runs, so the rolling-window examples remain valid.
+
+## Stateful authentication
+
+Sanctum authenticates the browser SPA with the Laravel session cookie. The expected local frontend origin is `http://localhost:5173`; it can be changed through `FRONTEND_URL` and `SANCTUM_STATEFUL_DOMAINS`.
+
+A browser client must call `GET /sanctum/csrf-cookie`, log in, and then send its session cookie and XSRF header with protected requests.
+
+```js
+import axios from 'axios'
+
+const api = axios.create({
+  baseURL: 'http://localhost:8000',
+  withCredentials: true,
+  withXSRFToken: true,
+  headers: { Accept: 'application/json' },
+})
+
+await api.get('/sanctum/csrf-cookie')
+await api.post('/api/login', { username: 'admin', password: 'password' })
+const orders = await api.get('/api/orders', { params: { lot_number: '951357' } })
+```
+
+## API endpoints
+
+| Method | Endpoint | Authentication | Description |
+| --- | --- | --- | --- |
+| `GET` | `/sanctum/csrf-cookie` | No | Initialize CSRF protection. |
+| `POST` | `/api/login` | No | Start an authenticated session. |
+| `POST` | `/api/logout` | Yes | End the current session. |
+| `GET` | `/api/user` | Yes | Return the authenticated administrator. |
+| `GET` | `/api/medications/search` | Yes | Find medication records by exact lot number. |
+| `GET` | `/api/orders` | Yes | Find and paginate affected orders. |
+| `GET` | `/api/orders/{order}` | Yes | Return an order with customer and medication details. |
+| `GET` | `/api/customers/{customer}` | Yes | Return a customer and their order history. |
+| `POST` | `/api/alerts/send` | Yes | Email the buyer of an order affected by a lot. |
+
+### Search parameters
+
+`lot_number` is required for medication and order searches. The order endpoint also accepts inclusive `start_date` and `end_date` values in `YYYY-MM-DD` format. When omitted, the range is the rolling 30 days ending today. A reversed range returns `422 Unprocessable Entity`.
+
+```http
+GET /api/orders?lot_number=951357&start_date=2026-07-22&end_date=2026-08-21&page=1
+Accept: application/json
+```
+
+The response uses native Laravel Resource pagination with `data`, `links`, and `meta`. Orders are sorted by newest `purchase_date` and contain customer contact data and only medications matching the requested lot.
+
+## Postman collection
+
+Import [`docs/pharmacovigilance-api.postman_collection.json`](docs/pharmacovigilance-api.postman_collection.json) into Postman and run the complete collection in its numbered order. No separate Postman environment is required.
+
+The collection uses `http://localhost:8000`, the seeded administrator, and lot `951357`. It initializes CSRF protection, refreshes the token after login, preserves the Laravel session, adds the XSRF header, calculates a rolling 30-day range, and captures the matching order and customer IDs. It also tests expected `422` responses. The successful alert email appears at `http://localhost:8025`.
+
+Before running it:
+
+```bash
+./vendor/bin/sail up -d
+./vendor/bin/sail artisan migrate:fresh --seed
+```
+
+### Send an alert
+
+```http
+POST /api/alerts/send
+Accept: application/json
+Content-Type: application/json
+
+{
+  "order_id": 1,
+  "lot_number": "951357"
+}
+```
+
+The recipient and medication details are always resolved from the database. A request is rejected with `422` when the selected order does not contain the requested lot. Successful local messages appear in Mailpit.
+
+## Response conventions
+
+- Resources are wrapped in `data`.
+- Paginated resources include `data`, `links`, and `meta`.
+- Unauthenticated requests return `401`.
+- Missing model records return `404`.
+- Invalid input and business-rule violations return `422` with an `errors` object.
+
+## Architecture
+
+The project follows Laravel MVC with a small application layer:
+
+```text
+app/
+├── Actions/Alerts/       # Alert validation and delivery workflow
+├── Http/
+│   ├── Controllers/Api/ # Thin HTTP coordinators
+│   ├── Requests/        # Validation and input normalization
+│   └── Resources/       # Stable REST response shapes
+├── Mail/                # Email construction
+├── Models/              # Eloquent persistence and relationships
+└── Queries/Orders/      # Reusable order filtering
+```
+
+No Repository Pattern or JSON:API dependency is used. Models own Eloquent behavior, controllers coordinate, query objects contain non-trivial filtering, and actions contain the alert workflow.
+
+## Quality checks
+
+```bash
+./vendor/bin/sail pint --test
+./vendor/bin/sail artisan test
+./vendor/bin/sail artisan route:list --path=api
+```
+
+The Pest suite covers authentication, authorization, validation, inclusive date filtering, the default rolling window, pagination, detail responses, missing records, and mail delivery. Date-sensitive tests freeze time.
+
+## Email configuration
+
+Local SMTP points to the `mailpit` Compose service on port `1025`. Other environments can replace the standard Laravel `MAIL_*` variables without changing application code.
+
+## Assumptions
+
+- “Last month” means a rolling 30-day period, including both boundary dates.
+- Authentication is stateful and intended for a first-party Vue SPA.
+- Only orders containing the requested lot can receive a recall alert.
+- Alert audit storage and bonus features are intentionally excluded.
+- All source, identifiers, database objects, sample content, emails, tests, and documentation are in English.
+
+See [`docs/development-log.md`](docs/development-log.md) for the proposed commit sequence and verification record.
