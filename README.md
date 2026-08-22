@@ -7,9 +7,10 @@ The Vue frontend is maintained in the separate `pharmacovigilance-front` reposit
 ## Requirements
 
 - Docker Engine with Docker Compose
+- PHP 8.3 or newer and Composer for the initial dependency installation
 - Ports `8000`, `3308`, and `8025` available, or equivalent overrides in `.env`
 
-No host PHP, Composer, Node.js, or MySQL installation is required.
+Node.js and MySQL do not need to be installed on the host.
 
 ## Setup instructions
 
@@ -20,18 +21,22 @@ git clone https://github.com/kwgeniusz/pharmacovigilance-api.git
 cd pharmacovigilance-api
 ```
 
-Create the local environment file, build the PHP 8.5 image, and install Composer dependencies inside the container:
+Create the local environment file and install the Composer dependencies:
 
 ```bash
 cp .env.example .env
-docker compose build laravel.test
-docker compose run --rm laravel.test composer install
-docker compose up -d
-docker compose exec laravel.test php artisan key:generate
-docker compose exec laravel.test php artisan migrate:fresh --seed
+composer install
 ```
 
-After Composer has created `vendor/`, the Sail helper can be used for subsequent commands.
+Start the application with Laravel Sail, generate the application key, and initialize the database:
+
+```bash
+./vendor/bin/sail up -d
+./vendor/bin/sail artisan key:generate
+./vendor/bin/sail artisan migrate:fresh --seed
+```
+
+Sail builds the PHP 8.5 application image the first time it starts.
 
 The services are available at:
 
