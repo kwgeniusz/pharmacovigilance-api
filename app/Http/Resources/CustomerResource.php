@@ -19,6 +19,7 @@ class CustomerResource extends JsonResource
             'name' => $this->name,
             'email' => $this->email,
             'phone' => $this->phone,
+            'orders' => OrderResource::collection($this->whenLoaded('orders')),
         ];
     }
 }
