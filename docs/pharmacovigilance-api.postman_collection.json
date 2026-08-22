@@ -95,8 +95,33 @@
           ]}}],
           "request": {"method": "GET", "url": "{{baseUrl}}/api/orders?lot_number={{lotNumber}}&start_date={{startDate}}&end_date={{endDate}}&page=1"}
         },
+    {
+      "name": "Export Orders CSV",
+      "event": [
         {
-          "name": "Order Details",
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('CSV export succeeds for administrator', () => { pm.response.to.have.status(200); pm.expect(pm.response.headers.get('Content-Type')).to.include('text/csv'); pm.expect(pm.response.text()).to.include('Order ID,Customer,Email,Phone,Purchase Date,Medication,Lot Number'); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "text/csv"
+          }
+        ],
+        "url": "{{baseUrl}}/api/orders/export?lot_number={{lotNumber}}&start_date={{startDate}}&end_date={{endDate}}",
+        "description": "Administrator-only export containing all orders matching the active filters."
+      }
+    },
+    {
+      "name": "Order Details",
           "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
             "pm.test('Order includes customer and items', () => { pm.response.to.have.status(200); const data=pm.response.json().data; pm.expect(data.customer).to.be.an('object'); pm.expect(data.items).to.be.an('array').that.is.not.empty; });"
           ]}}],

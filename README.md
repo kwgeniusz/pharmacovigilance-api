@@ -2,7 +2,7 @@
 
 Laravel 13 REST API for finding buyers of a medication lot and sending recall warnings. It uses MySQL, Sanctum stateful authentication, Laravel Resources, Pest, and Laravel Sail with PHP 8.5 and Mailpit.
 
-The Vue application is intentionally deferred to a separate `pharmacovigilance-front` repository.
+The Vue frontend is maintained in the separate `pharmacovigilance-front` repository.
 
 ## Requirements
 
@@ -45,6 +45,8 @@ Stop the environment with `./vendor/bin/sail down` or `docker compose down`.
 
 - Administrator username: `admin`
 - Administrator password: `password`
+- Operator username: `operator`
+- Operator password: `password`
 - Affected medication lot: `951357`
 - Purchases of that lot inside the rolling 30-day window
 - An older purchase of the same lot
@@ -80,9 +82,10 @@ const orders = await api.get('/api/orders', { params: { lot_number: '951357' } }
 | `GET` | `/sanctum/csrf-cookie` | No | Initialize CSRF protection. |
 | `POST` | `/api/login` | No | Start an authenticated session. |
 | `POST` | `/api/logout` | Yes | End the current session. |
-| `GET` | `/api/user` | Yes | Return the authenticated administrator. |
+| `GET` | `/api/user` | Yes | Return the authenticated user and role. |
 | `GET` | `/api/medications/search` | Yes | Find medication records by exact lot number. |
 | `GET` | `/api/orders` | Yes | Find and paginate affected orders. |
+| `GET` | `/api/orders/export` | Administrator | Download all affected orders matching the filters as CSV. |
 | `GET` | `/api/orders/{order}` | Yes | Return an order with customer and medication details. |
 | `GET` | `/api/customers/{customer}` | Yes | Return a customer and their order history. |
 | `POST` | `/api/alerts/send` | Yes | Email the buyer of an order affected by a lot. |
@@ -96,7 +99,18 @@ GET /api/orders?lot_number=951357&start_date=2026-07-22&end_date=2026-08-21&page
 Accept: application/json
 ```
 
-The response uses native Laravel Resource pagination with `data`, `links`, and `meta`. Orders are sorted by newest `purchase_date` and contain customer contact data and only medications matching the requested lot.
+Paginated responses contain `data`, `links`, and `meta`. Orders are sorted by newest `purchase_date` and include customer contact data and medications matching the requested lot.
+
+### Export affected orders
+
+Administrators can export every order matching the current lot and date filters. The streamed CSV is not limited to the visible pagination page.
+
+```http
+GET /api/orders/export?lot_number=951357&start_date=2026-07-22&end_date=2026-08-21
+Accept: text/csv
+```
+
+The CSV contains the order ID, customer contact information, purchase date, medication, and lot number. Values that could be interpreted as spreadsheet formulas are escaped. Operators receive `403 Forbidden`.
 
 ## Postman collection
 
@@ -152,7 +166,9 @@ app/
 └── Queries/Orders/      # Reusable order filtering
 ```
 
-No Repository Pattern or JSON:API dependency is used. Models own Eloquent behavior, controllers coordinate, query objects contain non-trivial filtering, and actions contain the alert workflow.
+The project does not use the Repository Pattern or a JSON:API dependency. Models handle Eloquent behavior, controllers coordinate requests, query objects filter orders, and actions send alerts.
+
+Both roles can search, view records, and send individual alerts. Only administrators can export CSV results. Backend middleware blocks operators from the export endpoint.
 
 ## Quality checks
 
@@ -162,7 +178,7 @@ No Repository Pattern or JSON:API dependency is used. Models own Eloquent behavi
 ./vendor/bin/sail artisan route:list --path=api
 ```
 
-The Pest suite covers authentication, authorization, validation, inclusive date filtering, the default rolling window, pagination, detail responses, missing records, and mail delivery. Date-sensitive tests freeze time.
+The Pest suite covers authentication, role authorization, validation, inclusive date filtering, the default rolling window, pagination, CSV export, detail responses, missing records, and mail delivery. Date-sensitive tests freeze time.
 
 ## Email configuration
 
@@ -171,9 +187,7 @@ Local SMTP points to the `mailpit` Compose service on port `1025`. Other environ
 ## Assumptions
 
 - “Last month” means a rolling 30-day period, including both boundary dates.
-- Authentication is stateful and intended for a first-party Vue SPA.
+- Authentication is stateful and intended for the first-party Vue SPA.
+- The administrator and operator roles are sufficient; user management is outside scope.
 - Only orders containing the requested lot can receive a recall alert.
-- Alert audit storage and bonus features are intentionally excluded.
-- All source, identifiers, database objects, sample content, emails, tests, and documentation are in English.
-
-See [`docs/development-log.md`](docs/development-log.md) for the proposed commit sequence and verification record.
+- CSV export and role-based access are implemented. Bulk alerts, SMS, and alert audit storage are excluded.
