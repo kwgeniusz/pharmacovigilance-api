@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\UserRole;
 use App\Models\Medication;
 use App\Models\Order;
 use App\Models\User;
@@ -17,9 +18,13 @@ test('the deterministic seeder creates the administrator and required order scen
     $this->seed(DatabaseSeeder::class);
 
     $administrator = User::query()->where('username', 'admin')->sole();
+    $operator = User::query()->where('username', 'operator')->sole();
     $affectedMedication = Medication::query()->where('lot_number', '951357')->sole();
 
     expect(Hash::check('password', $administrator->password))->toBeTrue()
+        ->and($administrator->role)->toBe(UserRole::Administrator)
+        ->and(Hash::check('password', $operator->password))->toBeTrue()
+        ->and($operator->role)->toBe(UserRole::Operator)
         ->and($affectedMedication->orders()->whereDate('purchase_date', today()->subDays(10))->exists())->toBeTrue()
         ->and($affectedMedication->orders()->whereDate('purchase_date', today()->subDays(25))->exists())->toBeTrue()
         ->and($affectedMedication->orders()->whereDate('purchase_date', today()->subDays(45))->exists())->toBeTrue()

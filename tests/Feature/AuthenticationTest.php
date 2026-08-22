@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\UserRole;
 use App\Models\User;
 
 beforeEach(function (): void {
@@ -11,6 +12,7 @@ test('a user can log in with a username and password', function () {
     $user = User::factory()->create([
         'username' => 'pharmacist',
         'password' => 'secret-password',
+        'role' => UserRole::Operator,
     ]);
 
     $response = $this->postJson('/api/login', [
@@ -21,7 +23,8 @@ test('a user can log in with a username and password', function () {
     $response
         ->assertOk()
         ->assertJsonPath('data.id', $user->id)
-        ->assertJsonPath('data.username', 'pharmacist');
+        ->assertJsonPath('data.username', 'pharmacist')
+        ->assertJsonPath('data.role', 'operator');
     $this->assertAuthenticatedAs($user);
 });
 
