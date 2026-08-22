@@ -184,10 +184,3 @@ The Pest suite covers authentication, role authorization, validation, inclusive 
 
 Local SMTP points to the `mailpit` Compose service on port `1025`. Other environments can replace the standard Laravel `MAIL_*` variables without changing application code.
 
-## Assumptions
-
-- “Last month” means a rolling 30-day period, including both boundary dates.
-- Authentication is stateful and intended for the first-party Vue SPA.
-- The administrator and operator roles are sufficient; user management is outside scope.
-- Only orders containing the requested lot can receive a recall alert.
-- CSV export and role-based access are implemented. Bulk alerts, SMS, and alert audit storage are excluded.
