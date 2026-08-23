@@ -86,7 +86,7 @@
             "const response=pm.response.json(); pm.test('Affected orders are paginated', () => { pm.response.to.have.status(200); pm.expect(response.data).to.be.an('array').that.is.not.empty; pm.expect(response).to.have.all.keys('data','links','meta'); });",
             "const order=response.data?.[0]; if (order) { pm.collectionVariables.set('orderId', String(order.id)); pm.collectionVariables.set('customerId', String(order.customer.id)); }"
           ]}}],
-          "request": {"method": "GET", "url": "{{baseUrl}}/api/orders?lot_number={{lotNumber}}&page=1", "description": "Uses the default rolling 30 days and captures IDs for the next requests."}
+          "request": {"method": "GET", "url": "{{baseUrl}}/api/orders?lot_number={{lotNumber}}&page=1", "description": "Filters by lot number and captures IDs for the next requests."}
         },
         {
           "name": "Search Orders - Explicit Date Range",

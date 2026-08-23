@@ -13,7 +13,7 @@ beforeEach(function (): void {
 
 afterEach(fn () => Carbon::setTestNow());
 
-test('the default search returns affected orders from the last thirty days', function () {
+test('the default search returns all orders and their medications', function () {
     $customer = Customer::factory()->create();
     $affected = Medication::factory()->create(['lot_number' => '951357']);
     $other = Medication::factory()->create(['lot_number' => '111111']);
@@ -27,11 +27,30 @@ test('the default search returns affected orders from the last thirty days', fun
     OrderItem::factory()->for($oldAffectedOrder)->for($affected)->create();
     OrderItem::factory()->for($unrelatedOrder)->for($other)->create();
 
+    $this->getJson('/api/orders')
+        ->assertOk()
+        ->assertJsonCount(3, 'data')
+        ->assertJsonPath('data.0.id', $unrelatedOrder->id)
+        ->assertJsonPath('data.1.id', $recentAffectedOrder->id)
+        ->assertJsonPath('data.1.customer.email', $customer->email)
+        ->assertJsonCount(2, 'data.1.items')
+        ->assertJsonPath('data.1.items.0.medication.lot_number', '951357');
+});
+
+test('a lot number filters orders without requiring dates', function () {
+    $affected = Medication::factory()->create(['lot_number' => '951357']);
+    $other = Medication::factory()->create(['lot_number' => '111111']);
+    $matchingOrder = Order::factory()->create(['purchase_date' => '2026-08-10']);
+    $otherOrder = Order::factory()->create(['purchase_date' => '2026-08-11']);
+
+    OrderItem::factory()->for($matchingOrder)->for($affected)->create();
+    OrderItem::factory()->for($matchingOrder)->for($other)->create();
+    OrderItem::factory()->for($otherOrder)->for($other)->create();
+
     $this->getJson('/api/orders?lot_number=951357')
         ->assertOk()
         ->assertJsonCount(1, 'data')
-        ->assertJsonPath('data.0.id', $recentAffectedOrder->id)
-        ->assertJsonPath('data.0.customer.email', $customer->email)
+        ->assertJsonPath('data.0.id', $matchingOrder->id)
         ->assertJsonCount(1, 'data.0.items')
         ->assertJsonPath('data.0.items.0.medication.lot_number', '951357');
 });
@@ -44,6 +63,25 @@ test('explicit date boundaries are inclusive', function () {
     OrderItem::factory()->for($last)->for($medication)->create();
 
     $this->getJson('/api/orders?lot_number=951357&start_date=2026-08-01&end_date=2026-08-15')
+        ->assertOk()
+        ->assertJsonCount(2, 'data');
+});
+
+test('each date can be applied independently', function () {
+    $medication = Medication::factory()->create(['lot_number' => '951357']);
+    $old = Order::factory()->create(['purchase_date' => '2026-07-01']);
+    $middle = Order::factory()->create(['purchase_date' => '2026-08-10']);
+    $new = Order::factory()->create(['purchase_date' => '2026-08-20']);
+
+    foreach ([$old, $middle, $new] as $order) {
+        OrderItem::factory()->for($order)->for($medication)->create();
+    }
+
+    $this->getJson('/api/orders?start_date=2026-08-01')
+        ->assertOk()
+        ->assertJsonCount(2, 'data');
+
+    $this->getJson('/api/orders?end_date=2026-08-15')
         ->assertOk()
         ->assertJsonCount(2, 'data');
 });
@@ -64,7 +102,7 @@ test('order search results are paginated', function () {
         ->create(['purchase_date' => today()])
         ->each(fn (Order $order) => OrderItem::factory()->for($order)->for($medication)->create());
 
-    $this->getJson('/api/orders?lot_number=951357')
+    $this->getJson('/api/orders')
         ->assertOk()
         ->assertJsonCount(15, 'data')
         ->assertJsonPath('meta.total', 16)

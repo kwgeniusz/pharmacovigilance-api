@@ -24,7 +24,7 @@ class SendAlertRequest extends FormRequest
     {
         return [
             'order_id' => ['required', 'integer', 'exists:orders,id'],
-            'lot_number' => ['required', 'string', 'max:100'],
+            'lot_number' => ['required', 'string', 'digits:6'],
         ];
     }
 }

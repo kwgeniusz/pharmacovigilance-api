@@ -23,7 +23,7 @@ class SearchMedicationRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'lot_number' => ['required', 'string', 'max:100'],
+            'lot_number' => ['required', 'string', 'digits:6'],
         ];
     }
 }

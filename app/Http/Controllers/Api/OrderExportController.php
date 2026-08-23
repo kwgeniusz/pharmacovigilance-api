@@ -17,7 +17,7 @@ class OrderExportController extends Controller
     public function __invoke(ExportOrdersRequest $request, SearchOrders $searchOrders): StreamedResponse
     {
         $filters = $request->validated();
-        $lot = Str::slug($filters['lot_number']) ?: 'lot';
+        $lot = Str::slug($filters['lot_number'] ?? '') ?: 'all';
 
         return response()->streamDownload(
             function () use ($filters, $searchOrders): void {
@@ -44,6 +44,10 @@ class OrderExportController extends Controller
                             ->pluck('medication.name')
                             ->implode('; ');
 
+                        $lots = $order->items
+                            ->pluck('medication.lot_number')
+                            ->implode('; ');
+
                         $cells = [
                             (string) $order->id,
                             $order->customer->name,
@@ -51,7 +55,7 @@ class OrderExportController extends Controller
                             $order->customer->phone,
                             $order->purchase_date->toDateString(),
                             $medications,
-                            $order->items->first()?->medication->lot_number ?? '',
+                            $lots,
                         ];
 
                         fputcsv(

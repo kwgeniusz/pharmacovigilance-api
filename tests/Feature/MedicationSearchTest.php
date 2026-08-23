@@ -23,3 +23,9 @@ test('a lot number is required to search medications', function () {
         ->assertUnprocessable()
         ->assertJsonValidationErrors('lot_number');
 });
+
+test('a lot number must contain exactly six digits', function (string $lotNumber) {
+    $this->getJson("/api/medications/search?lot_number={$lotNumber}")
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('lot_number');
+})->with(['12345', '1234567', 'ABC123']);

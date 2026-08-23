@@ -71,3 +71,13 @@ test('csv export applies the same date validation as order search', function () 
         ->assertUnprocessable()
         ->assertJsonValidationErrors('end_date');
 });
+
+test('an administrator can export all orders without filters', function () {
+    $medication = Medication::factory()->create(['lot_number' => '951357']);
+    $order = Order::factory()->create();
+    OrderItem::factory()->for($order)->for($medication)->create();
+
+    $this->get('/api/orders/export', ['Accept' => 'text/csv'])
+        ->assertOk()
+        ->assertDownload('affected-orders-all.csv');
+});

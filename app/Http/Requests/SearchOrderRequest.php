@@ -22,18 +22,16 @@ class SearchOrderRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
-            'lot_number' => ['required', 'string', 'max:100'],
-            'start_date' => ['required', 'date_format:Y-m-d'],
-            'end_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:start_date'],
-        ];
-    }
+        $endDateRules = ['nullable', 'date_format:Y-m-d'];
 
-    protected function prepareForValidation(): void
-    {
-        $this->merge([
-            'start_date' => $this->input('start_date', today()->subDays(30)->toDateString()),
-            'end_date' => $this->input('end_date', today()->toDateString()),
-        ]);
+        if ($this->filled('start_date')) {
+            $endDateRules[] = 'after_or_equal:start_date';
+        }
+
+        return [
+            'lot_number' => ['nullable', 'string', 'digits:6'],
+            'start_date' => ['nullable', 'date_format:Y-m-d'],
+            'end_date' => $endDateRules,
+        ];
     }
 }

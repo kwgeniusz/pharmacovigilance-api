@@ -97,18 +97,18 @@ const orders = await api.get('/api/orders', { params: { lot_number: '951357' } }
 
 ### Search parameters
 
-`lot_number` is required for medication and order searches. The order endpoint also accepts inclusive `start_date` and `end_date` values in `YYYY-MM-DD` format. When omitted, the range is the rolling 30 days ending today. A reversed range returns `422 Unprocessable Entity`.
+The order list returns every order when no filters are supplied. `lot_number`, `start_date`, and `end_date` are optional and can be combined; either date can also be used independently. Lot numbers must contain six digits and dates use the `YYYY-MM-DD` format. A reversed range returns `422 Unprocessable Entity`.
 
 ```http
 GET /api/orders?lot_number=951357&start_date=2026-07-22&end_date=2026-08-21&page=1
 Accept: application/json
 ```
 
-Paginated responses contain `data`, `links`, and `meta`. Orders are sorted by newest `purchase_date` and include customer contact data and medications matching the requested lot.
+Paginated responses contain `data`, `links`, and `meta`. Orders are sorted by newest `purchase_date` and include customer contact data. Without a lot filter, every medication in each order is returned; with a lot filter, only the matching medication items are included.
 
 ### Export affected orders
 
-Administrators can export every order matching the current lot and date filters. The streamed CSV is not limited to the visible pagination page.
+Administrators can export every order, optionally applying the current lot and date filters. The streamed CSV is not limited to the visible pagination page.
 
 ```http
 GET /api/orders/export?lot_number=951357&start_date=2026-07-22&end_date=2026-08-21
@@ -183,9 +183,8 @@ Both roles can search, view records, and send individual alerts. Only administra
 ./vendor/bin/sail artisan route:list --path=api
 ```
 
-The Pest suite covers authentication, role authorization, validation, inclusive date filtering, the default rolling window, pagination, CSV export, detail responses, missing records, and mail delivery. Date-sensitive tests freeze time.
+The Pest suite covers authentication, role authorization, validation, optional and inclusive filtering, the unfiltered order list, pagination, CSV export, detail responses, missing records, and mail delivery. Date-sensitive tests freeze time.
 
 ## Email configuration
 
 Local SMTP points to the `mailpit` Compose service on port `1025`. Other environments can replace the standard Laravel `MAIL_*` variables without changing application code.
-
